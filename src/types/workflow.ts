@@ -15,7 +15,7 @@ export interface WorkflowEdge {
   id: string
   source: string
   target: string
-  type?: 'default' | 'conditional'
+  type?: 'default' | 'conditional' | 'smoothstep'
   label?: string
   data?: {
     condition?: string

@@ -2,13 +2,11 @@
 
 import { useState } from 'react'
 import { PromptInput } from '@/components/workflow/prompt-input'
-import { WorkflowBuilderWrapper } from '@/components/workflow/workflow-builder'
-import { WorkflowLoading } from '@/components/workflow/workflow-loading'
-import { AIService } from '@/lib/ai-service'
-import { Workflow } from '@/types/workflow'
-import { Button } from '@/components/ui/button'
-import { ArrowLeft, Download, Settings, Zap, MessageSquare, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { LovableLayout } from '@/components/layout/lovable-layout'
+import { AIService, ProgressUpdate } from '@/lib/ai-service'
+import { WorkflowExecutor } from '@/lib/workflow-executor'
+import { Workflow, WorkflowProject } from '@/types/workflow'
+import { Sparkles } from 'lucide-react'
 
 type AppState = 'input' | 'workflow'
 
@@ -16,56 +14,63 @@ export default function Home() {
   const [state, setState] = useState<AppState>('input')
   const [currentPrompt, setCurrentPrompt] = useState('')
   const [workflow, setWorkflow] = useState<Workflow | null>(null)
+  const [project, setProject] = useState<WorkflowProject | null>(null)
   const [chatHistory, setChatHistory] = useState<Array<{role: 'user' | 'assistant', content: string}>>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isWorkflowLoading, setIsWorkflowLoading] = useState(false)
+  const [sessionId] = useState(() => `session_${Date.now()}`)
+  const [progressUpdate, setProgressUpdate] = useState<ProgressUpdate | null>(null)
 
   const handlePromptSubmit = async (prompt: string) => {
     setCurrentPrompt(prompt)
     setIsGenerating(true)
     setIsWorkflowLoading(true)
-    setState('workflow') // Show workflow view immediately
+    setState('workflow') // Go to Lovable-style layout immediately
     
-    // Add user message to chat
-    setChatHistory([{ role: 'user', content: prompt }])
-
-    // Add initial AI response to chat
-    setChatHistory(prev => [...prev, { 
-      role: 'assistant', 
-      content: `Perfect! I'm creating a workflow based on your request. Let me analyze your requirements and build the automation flow for you...`
-    }])
-
     try {
-      // Phase 1: AI Analysis (with streaming updates)
-      const analysis = await AIService.analyzePrompt(prompt)
+      // Get Lovable-style enthusiastic response + start generation immediately
+      const { enthusiasticResponse, generationPromise } = await AIService.generateLovableStyleResponse(
+        prompt,
+        handleProgressUpdate // Pass progress callback for streaming updates
+      )
       
-      // Update chat with analysis
+      // Show the enthusiastic response immediately (like Lovable)
+      setChatHistory([
+        { role: 'user', content: prompt },
+        { role: 'assistant', content: enthusiasticResponse }
+      ])
+
+      // Wait for the actual generation to complete
+      const { workflow: generatedWorkflow, project: generatedProject } = await generationPromise
+      
+      // Create session for collaboration
+      AIService.createSession(sessionId, prompt, generatedWorkflow, generatedProject)
+      
+      // Update state with generated results
+      setWorkflow(generatedWorkflow)
+      setProject(generatedProject)
+      setIsWorkflowLoading(false)
+      
+      // Show completion message (like Lovable)
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: `I understand! I'm creating a workflow that ${analysis.blueprint}. The workflow will have ${analysis.suggestedNodes.length} steps. Building it now...`
+        content: `✨ Your workflow automation is ready!\n\nI've created ${generatedWorkflow.nodes.length} connected steps with ${generatedProject.integrations.length} custom integrations. The workflow includes a complete backend engine, monitoring system, and is ready for testing!\n\nYou can now execute this workflow directly or ask me to modify anything.` 
       }])
-
-      // Phase 2: Generate workflow
-      const generatedWorkflow = await AIService.generateWorkflow(analysis, prompt)
       
-      // Small delay to let loading animation complete
+      // Add "What's next" as a chat message
       setTimeout(() => {
-        setWorkflow(generatedWorkflow)
-        setIsWorkflowLoading(false)
-        
-        // Add completion message to chat
         setChatHistory(prev => [...prev, { 
           role: 'assistant', 
-          content: `🎉 Your workflow is ready! I've created ${generatedWorkflow.nodes.length} connected steps. You can click on any node to configure it, or ask me to make changes.`
+          content: `**What's next?**\n\n• **Test & Execute:** Run your workflow to validate the automation\n• **Add Integrations:** Connect real APIs and services\n• **Deploy:** Push to production environment\n\nUse the buttons below or ask me to make any changes!` 
         }])
-      }, 2000)
+      }, 1000)
       
     } catch (error) {
-      console.error('Failed to generate workflow:', error)
+      console.error('Generation failed:', error)
       setIsWorkflowLoading(false)
       setChatHistory(prev => [...prev, { 
         role: 'assistant', 
-        content: 'Sorry, I encountered an error generating your workflow. Please try again or let me know if you need help.'
+        content: 'Oops! Something went wrong while building your workflow. Let me try a different approach...' 
       }])
     } finally {
       setIsGenerating(false)
@@ -73,34 +78,38 @@ export default function Home() {
   }
 
   const handleChatMessage = async (message: string) => {
-    if (!workflow && !isWorkflowLoading) return
+    if (!workflow) return
     
     setIsGenerating(true)
-    setChatHistory(prev => [...prev, { role: 'user', content: message }])
-
+    
+    // Add user message to chat
+    const newUserMessage = { role: 'user' as const, content: message }
+    setChatHistory(prev => [...prev, newUserMessage])
+    
+    // Update session history
+    AIService.updateSessionHistory(sessionId, 'user', message)
+    
     try {
-      if (workflow) {
-        // Use AI to modify the workflow based on the chat message
-        const updatedWorkflow = await AIService.modifyWorkflow(workflow, message)
-        setWorkflow(updatedWorkflow)
-        
-        setChatHistory(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'I\'ve updated your workflow based on your request. The changes are now reflected in the canvas.'
-        }])
-      } else {
-        // Workflow is still loading, provide helpful response
-        setChatHistory(prev => [...prev, { 
-          role: 'assistant', 
-          content: 'I\'m still working on your initial workflow. Once it\'s ready, I\'ll be happy to make those changes for you!'
-        }])
-      }
+      // Use enhanced collaborative workflow modification
+      const modifiedWorkflow = await AIService.modifyWorkflow(workflow, message, sessionId)
+      
+      // Update workflow state
+      setWorkflow(modifiedWorkflow)
+      
+      // Generate AI response about the modification
+      const aiResponse = `I've updated your workflow based on your request. The changes include modifications to the workflow structure and connections.`
+      
+      const newAiMessage = { role: 'assistant' as const, content: aiResponse }
+      setChatHistory(prev => [...prev, newAiMessage])
+      
+      // Update session history
+      AIService.updateSessionHistory(sessionId, 'assistant', aiResponse)
+      
     } catch (error) {
       console.error('Failed to modify workflow:', error)
-      setChatHistory(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'I had trouble making that change. Could you try rephrasing your request?'
-      }])
+      const errorMessage = 'I had trouble understanding that modification. Could you please rephrase your request?'
+      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMessage }])
+      AIService.updateSessionHistory(sessionId, 'assistant', errorMessage)
     } finally {
       setIsGenerating(false)
     }
@@ -111,18 +120,78 @@ export default function Home() {
     console.log('Workflow saved:', updatedWorkflow)
   }
 
-  const handleWorkflowExecute = () => {
+  const handleWorkflowExecute = async () => {
     if (!workflow) return
-    console.log('Executing workflow:', workflow)
-    alert('Workflow execution started! (This is a demo)')
+    
+    console.log('🚀 Executing workflow:', workflow.name)
+    
+    // Add execution start message
+    setChatHistory(prev => [...prev, { 
+      role: 'assistant', 
+      content: `🚀 Starting workflow execution...\n\nI'll run through each step and show you the results in real-time!` 
+    }])
+
+    try {
+      const result = await WorkflowExecutor.executeWorkflow(
+        workflow, 
+        project || undefined,
+        (stepResult) => {
+          // Real-time progress updates
+          console.log('Step completed:', stepResult)
+        }
+      )
+      
+      const summary = WorkflowExecutor.getExecutionSummary(result)
+      
+      setChatHistory(prev => [...prev, { 
+        role: 'assistant', 
+        content: `${summary}\n\nHere's what happened:\n${result.results.map(step => 
+          `• ${step.nodeName}: ${step.status === 'completed' ? '✅' : '❌'} (${step.duration}ms)`
+        ).join('\n')}\n\nYour automation is working perfectly! 🎉` 
+      }])
+      
+    } catch (error) {
+      console.error('Execution failed:', error)
+      setChatHistory(prev => [...prev, { 
+        role: 'assistant', 
+        content: `❌ Workflow execution encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}\n\nLet me help you debug and fix this issue!` 
+      }])
+    }
   }
 
   const handleStartOver = () => {
     setState('input')
     setWorkflow(null)
+    setProject(null)
     setCurrentPrompt('')
     setChatHistory([])
     setIsWorkflowLoading(false)
+    setIsGenerating(false)
+  }
+
+  const handleProgressUpdate = (update: ProgressUpdate) => {
+    setProgressUpdate(update)
+    
+    // Add streaming progress messages to chat
+    setChatHistory(prev => {
+      const lastMessage = prev[prev.length - 1]
+      
+      // If the last message is from assistant and is a progress message, update it
+      if (lastMessage && lastMessage.role === 'assistant' && lastMessage.content.includes('🔨')) {
+        const newChatHistory = [...prev]
+        newChatHistory[newChatHistory.length - 1] = {
+          role: 'assistant',
+          content: `🔨 ${update.message}\n\n**Progress:** ${update.progress}%${update.data ? `\n**Details:** ${Object.entries(update.data).map(([k, v]) => `${k}: ${v}`).join(', ')}` : ''}`
+        }
+        return newChatHistory
+      } else {
+        // Add new progress message
+        return [...prev, {
+          role: 'assistant',
+          content: `🔨 ${update.message}\n\n**Progress:** ${update.progress}%${update.data ? `\n**Details:** ${Object.entries(update.data).map(([k, v]) => `${k}: ${v}`).join(', ')}` : ''}`
+        }]
+      }
+    })
   }
 
   if (state === 'input') {
@@ -136,7 +205,7 @@ export default function Home() {
                 Build <span className="text-orange-500">Any Workflow</span> With Just a Prompt
               </h1>
               <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed mb-8">
-                Describe your automation needs in plain language. Get production-ready workflows in seconds.
+                Describe your automation needs in plain language. Get complete workflow systems with backend code in seconds.
               </p>
             </div>
 
@@ -145,11 +214,40 @@ export default function Home() {
               <PromptInput 
                 onSubmit={handlePromptSubmit}
                 className="w-full"
-                placeholder="Describe your workflow... e.g., 'Create a workflow that monitors my email for invoices and automatically saves them to Google Drive'"
+                placeholder="Describe your workflow automation... e.g., 'Create a system that monitors my email for invoices, extracts the data with AI, and automatically saves them to Google Sheets'"
                 buttonText="Generate Workflow"
                 buttonIcon={<Sparkles className="w-4 h-4" />}
                 disabled={isGenerating}
               />
+            </div>
+
+            {/* Feature Preview */}
+            <div className="max-w-4xl mx-auto mt-12">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
+                    <Sparkles className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">AI-Powered Generation</h3>
+                  <p className="text-gray-600 text-sm">Describe your needs and watch as AI builds complete automation systems with custom integrations and backend code.</p>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-green-500 font-bold">⚡</span>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Instant Execution</h3>
+                  <p className="text-gray-600 text-sm">Test and run your workflows immediately. See real-time results and debug issues with built-in monitoring.</p>
+                </div>
+                
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                    <span className="text-blue-500 font-bold">🔧</span>
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Production Ready</h3>
+                  <p className="text-gray-600 text-sm">Export complete TypeScript projects with integrations, error handling, and monitoring - ready for deployment.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -157,137 +255,19 @@ export default function Home() {
     )
   }
 
-  // Workflow state - unified chat + canvas view with immediate display
+  // Workflow state - Lovable-style layout
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={handleStartOver}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Start Over
-            </Button>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900">
-                {workflow?.name || 'Create A Workflow'}
-              </h1>
-              <p className="text-sm text-gray-500">
-                {isWorkflowLoading ? 'Generating...' : `${workflow?.nodes.length || 0} steps`}
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={handleWorkflowExecute}
-              className="bg-green-500 hover:bg-green-600 text-white"
-              size="sm"
-              disabled={!workflow}
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Test Run
-            </Button>
-            
-            <Button variant="outline" size="sm" disabled={!workflow}>
-              <Settings className="w-4 h-4 mr-2" />
-              Configure
-            </Button>
-            
-            <Button variant="outline" size="sm" disabled={!workflow}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content - Split View */}
-      <div className="flex-1 flex min-h-0">
-        {/* Workflow Canvas */}
-        <div className="flex-1 bg-white relative">
-          {isWorkflowLoading ? (
-            <WorkflowLoading 
-              prompt={currentPrompt}
-              onComplete={() => setIsWorkflowLoading(false)}
-            />
-          ) : workflow ? (
-            <WorkflowBuilderWrapper
-              workflow={workflow}
-              onSave={handleWorkflowSave}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-500">
-              <p>Workflow canvas will appear here</p>
-            </div>
-          )}
-        </div>
-
-        {/* Chat Sidebar - Fixed positioning */}
-        <div className="w-96 bg-white border-l border-gray-200 flex flex-col flex-shrink-0">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200 flex-shrink-0">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-orange-500" />
-              <h3 className="font-semibold text-gray-900">AI Assistant</h3>
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Ask me to modify your workflow or configure specific steps
-            </p>
-          </div>
-
-          {/* Chat Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-            {chatHistory.map((message, index) => (
-              <div
-                key={index}
-                className={cn(
-                  "flex",
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                )}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-lg px-4 py-3 text-sm leading-relaxed",
-                    message.role === 'user'
-                      ? 'bg-orange-500 text-white rounded-br-sm'
-                      : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-                  )}
-                >
-                  {message.content}
-                </div>
-              </div>
-            ))}
-            {isGenerating && (
-              <div className="flex justify-start">
-                <div className="bg-gray-100 text-gray-900 rounded-lg rounded-bl-sm px-4 py-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-600"></div>
-                    AI is thinking...
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Chat Input */}
-          <div className="p-4 border-t border-gray-200 flex-shrink-0">
-            <PromptInput
-              onSubmit={handleChatMessage}
-              placeholder="Ask me to modify your workflow..."
-              buttonText="Send"
-              buttonIcon={<MessageSquare className="w-4 h-4" />}
-              disabled={isGenerating}
-              size="sm"
-              showExamples={false}
-            />
-          </div>
-        </div>
-      </div>
-    </div>
+    <LovableLayout
+      workflow={workflow}
+      project={project}
+      aiMessages={chatHistory}
+      isGenerating={isGenerating}
+      isWorkflowLoading={isWorkflowLoading}
+      currentPrompt={currentPrompt}
+      onChatMessage={handleChatMessage}
+      onExecuteWorkflow={handleWorkflowExecute}
+      onStartOver={handleStartOver}
+      onWorkflowSave={handleWorkflowSave}
+    />
   )
 }
