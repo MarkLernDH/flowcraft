@@ -24,6 +24,8 @@ import { CodeViewer } from '@/components/workflow/code-viewer'
 import { PromptInput } from '@/components/workflow/prompt-input'
 import { AIDebugPanel } from '@/components/ui/ai-debug-panel'
 import { Workflow, WorkflowProject } from '@/types/workflow'
+import { EnhancedChat } from '@/components/workflow/enhanced-chat'
+
 import { cn } from '@/lib/utils'
 
 interface LovableLayoutProps {
@@ -242,17 +244,18 @@ export function LovableLayout({
         )}
 
         {/* Chat Input - Fixed */}
-        <div className="flex-shrink-0 p-4 border-t border-gray-200">
-          <PromptInput
-            onSubmit={onChatMessage}
-            placeholder="Ask me to modify your workflow..."
-            buttonText="Send"
-            buttonIcon={<MessageSquare className="w-4 h-4" />}
-            disabled={isGenerating}
-            size="sm"
-            showExamples={false}
-          />
-        </div>
+    <EnhancedChat
+      messages={aiMessages.map((msg, index) => ({
+        id: `msg-${index}`,
+        role: msg.role,
+        content: msg.content,
+        timestamp: new Date()
+      }))}
+      onSendMessage={onChatMessage}
+      onExecuteWorkflow={onExecuteWorkflow}
+      isGenerating={isGenerating}
+      workflowReady={!!workflow && !isWorkflowLoading}
+        />
       </div>
 
       {/* Main Content Area - Independent Scrolling */}
@@ -298,19 +301,18 @@ export function LovableLayout({
         {/* Workflow Canvas + Code Viewer - Scrollable */}
         <div className="flex-1 flex overflow-hidden">
           {/* Workflow Canvas - Independent Scrolling */}
-          <div className={`transition-all duration-300 ${codeViewerOpen ? 'w-1/2' : 'w-full'} overflow-hidden`}>
+          <div className={`transition-all duration-300 ${codeViewerOpen ? 'w-1/2' : 'w-full'} h-full`}>
             {isWorkflowLoading ? (
               <WorkflowLoading 
                 prompt={currentPrompt}
                 onComplete={() => {}}
               />
             ) : workflow ? (
-              <div className="h-full overflow-auto">
-                <WorkflowBuilderWrapper
-                  workflow={workflow}
-                  onSave={onWorkflowSave}
-                />
-              </div>
+              <WorkflowBuilderWrapper
+                workflow={workflow}
+                onSave={onWorkflowSave}
+                className="h-full"
+              />
             ) : (
               <div className="h-full flex items-center justify-center text-gray-500 bg-white">
                 <div className="text-center">

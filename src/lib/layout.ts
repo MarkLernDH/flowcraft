@@ -23,11 +23,11 @@ const LAYOUT_CONFIG = {
   vertical: {
     rankdir: 'TB', 
     nodesep: 60,  // Horizontal spacing between nodes in same rank  
-    ranksep: 300, // Increased vertical spacing between ranks (was 200, now 300)
-    marginx: 60,
-    marginy: 80,   // Increased margin for better spacing
-    edgesep: 20,   // Add edge separation
-    align: 'UL'    // Align nodes to upper-left for consistent positioning
+    ranksep: 200, // Vertical spacing between ranks (reduced from 300)
+    marginx: 100, // Increased margin for better centering
+    marginy: 100, // Increased margin for better centering
+    edgesep: 20,  // Add edge separation
+    align: 'UL'   // Align nodes to upper-left for consistent positioning
   }
 } as const
 
@@ -133,13 +133,25 @@ export const getLayoutedElements = (
           return aNum - bNum
         })
         
-        // Apply manual vertical spacing
+        // Apply manual vertical spacing with better centering
+        const VERTICAL_SPACING = 250 // Reduced spacing for better fit
+        const START_Y = 100 // Start higher up for better centering
+        const CENTER_X = 200 // Consistent X position for vertical alignment
+        
         sortedNodes.forEach((node, index) => {
-          const manualY = 80 + (index * 320) // Start at 80, then 400px spacing between each
-          node.position.y = manualY
-          console.log(`🔧 Manual positioning: ${node.id} -> y=${manualY}`)
+          node.position.x = CENTER_X // Center all nodes horizontally
+          node.position.y = START_Y + (index * VERTICAL_SPACING)
+          console.log(`🔧 Manual positioning: ${node.id} -> (${node.position.x}, ${node.position.y})`)
         })
       }
+    }
+
+    // Ensure all nodes have consistent X positioning for vertical layout
+    if (direction === 'TB') {
+      const CENTER_X = 200
+      layoutedNodes.forEach(node => {
+        node.position.x = CENTER_X
+      })
     }
 
     // Convert edges to ReactFlow format

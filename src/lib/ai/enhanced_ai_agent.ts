@@ -535,12 +535,14 @@ export class EnhancedAIAgent {
     }
   }
 
-  private extractResponseContent(output: unknown[] | undefined): string {
+  // Helper method to extract content from response output array
+  private extractResponseContent(output: any[]): string {
     if (!output || output.length === 0) return ''
     
-    const firstOutput = output[0] as { content?: Array<{ text?: string }> }
-    if (firstOutput.content && firstOutput.content.length > 0) {
-      return firstOutput.content[0].text || ''
+    const messageOutput = output.find((item: any) => item.type === 'message')
+    if (messageOutput && messageOutput.content && messageOutput.content.length > 0) {
+      const textContent = messageOutput.content.find((c: any) => c.type === 'output_text')
+      return textContent?.text || ''
     }
     
     return ''

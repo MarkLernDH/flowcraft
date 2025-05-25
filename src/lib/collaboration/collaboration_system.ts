@@ -204,23 +204,17 @@ export class AICollaborationFacilitator {
     const facilitationPrompt = this.buildFacilitationPrompt(session, message, workflow, context)
     
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai.responses.create({
         model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: this.buildSystemPrompt(session.aiPersona, context)
-          },
-          {
-            role: "user",
-            content: facilitationPrompt
-          }
-        ],
+        input: facilitationPrompt,
+        instructions: this.buildSystemPrompt(session.aiPersona, context),
         temperature: 0.4,
-        max_tokens: 2000
+        max_output_tokens: 2000
       })
 
-      const aiResponse = response.choices[0]?.message?.content || ''
+      const aiResponse = response.output_text || 
+                        this.extractContentFromResponse(response.output) || 
+                        ''
       const analysis = await this.parseAIFacilitationResponse(aiResponse)
       
       // Update session with AI response
@@ -252,48 +246,44 @@ export class AICollaborationFacilitator {
     const session = this.sessions.get(sessionId)
     if (!session) throw new Error('Session not found')
 
+    // Add participant to session
     session.participants.push(newParticipant)
 
-    // Enhanced personalized onboarding with team dynamics analysis
+    // Generate contextual onboarding
     const onboardingPrompt = `
-    A new collaborator is joining our workflow project with enhanced team analysis:
+    New team member joining workflow collaboration:
     
-    New participant: ${newParticipant.name}
+    Participant: ${newParticipant.name}
     Role: ${newParticipant.role}
     Expertise: ${newParticipant.expertiseAreas.join(', ')}
-    Communication style: ${newParticipant.preferredCommunicationStyle}
+    Communication Style: ${newParticipant.preferredCommunicationStyle}
     
     Current project context:
     Goal: ${session.goalTracking.originalGoal}
-    Progress: ${session.goalTracking.completedMilestones.length} milestones completed
-    Current blockers: ${session.goalTracking.blockers.join(', ')}
-    Team size: ${session.participants.length} members
+    Current participants: ${session.participants.map(p => `${p.name} (${p.role})`).join(', ')}
+    Recent conversation: ${session.conversationHistory.slice(-3).map(entry => 
+      `${entry.author}: ${entry.content}`
+    ).join('\n')}
     
-    Team expertise analysis:
-    ${session.participants.map(p => `${p.name}: ${p.expertiseAreas.join(', ')}`).join('\n')}
-    
-    Recent discussion topics:
-    ${session.conversationHistory.slice(-5).map(e => `${e.author}: ${e.content.substring(0, 100)}...`).join('\n')}
-    
-    Create:
-    1. A personalized welcoming onboarding message that acknowledges their expertise
-    2. A concise context summary focusing on their potential contributions
-    3. A suggested role that maximizes team synergy and covers current gaps
-    4. Specific ways they can contribute based on current needs and their skills
-    
-    Adapt the communication style to their preference: ${newParticipant.preferredCommunicationStyle}
-    Consider team dynamics and identify how they complement existing members.
+    Generate a personalized onboarding message that:
+    1. Welcomes them appropriately for their communication style
+    2. Summarizes current project status
+    3. Suggests how they can best contribute
+    4. Identifies potential collaboration opportunities
     `
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai.responses.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: onboardingPrompt }],
+        input: onboardingPrompt,
         temperature: 0.3,
-        max_tokens: 1000
+        max_output_tokens: 1000
       })
 
-      const result = this.parseOnboardingResponse(response.choices[0]?.message?.content || '')
+      const content = response.output_text || 
+                     this.extractContentFromResponse(response.output) || 
+                     ''
+      const result = this.parseOnboardingResponse(content)
       
       // Add onboarding message to conversation
       this.addConversationEntry(session, 'ai', result.onboardingMessage, 'suggestion')
@@ -322,53 +312,50 @@ export class AICollaborationFacilitator {
     if (!conflict) throw new Error('Conflict not found')
 
     const proposer = session.participants.find(p => p.id === proposerId)
+    if (!proposer) throw new Error('Proposer not found')
 
     const resolutionPrompt = `
-    Evaluate this proposed resolution for a team conflict with enhanced analysis:
+    Conflict Resolution Analysis:
     
-    Conflict Details:
-    - Description: ${conflict.description}
-    - Type: ${conflict.type}
-    - Impact Level: ${conflict.impact}
-    - Involved Participants: ${conflict.participants.join(', ')}
-    - Previously Suggested Resolutions: ${conflict.suggestedResolutions.join('; ')}
+    Original Conflict: ${conflict.description}
+    Conflicting Parties: ${conflict.participants.map(p => 
+      session.participants.find(p => p.id === p.id)?.name || 'Unknown'
+    ).join(' vs ')}
     
     Proposed Resolution: "${proposedResolution}"
-    Proposed by: ${proposer?.name} (${proposer?.role}) - Expertise: ${proposer?.expertiseAreas.join(', ')}
+    Proposed by: ${proposer.name} (${proposer.role})
     
-    Team Context and Dynamics:
+    Team Context:
     ${session.participants.map(p => 
-      `${p.name} (${p.role}) - Expertise: ${p.expertiseAreas.join(', ')} - Style: ${p.preferredCommunicationStyle}`
+      `- ${p.name}: ${p.role}, expertise in ${p.expertiseAreas.join(', ')}`
     ).join('\n')}
     
-    Project Goals: ${session.goalTracking.currentGoals.join(', ')}
-    Current Blockers: ${session.goalTracking.blockers.join(', ')}
+    Evaluate this resolution considering:
+    1. Technical feasibility and implications
+    2. Team dynamics and individual perspectives
+    3. Project goals and constraints
+    4. Potential unintended consequences
+    5. Alternative approaches
     
-    Recent Team Interactions:
-    ${session.conversationHistory.slice(-10).map(e => `${e.author}: ${e.content.substring(0, 80)}...`).join('\n')}
-    
-    Comprehensive Analysis Required:
-    1. Resolution Effectiveness: How well does this address the core conflict and its root causes?
-    2. Team Impact Assessment: How will this affect each team member and their contributions?
-    3. Implementation Feasibility: What are the practical steps and potential obstacles?
-    4. Alternative Approaches: What other solutions could work better or complement this one?
-    5. Consensus Building Strategy: How can we get all stakeholders aligned on this decision?
-    6. Success Metrics: How will we know if this resolution is working?
-    7. Risk Mitigation: What could go wrong and how do we prevent it?
-    
-    Consider the different expertise areas, communication styles, and team dynamics when evaluating.
-    Provide specific, actionable recommendations with clear next steps.
+    Provide:
+    - Clear recommendation (implement/modify/reject)
+    - Alternative options if needed
+    - Consensus-building suggestions
+    - Implementation steps
     `
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai.responses.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: resolutionPrompt }],
+        input: resolutionPrompt,
         temperature: 0.2,
-        max_tokens: 1500
+        max_output_tokens: 1500
       })
 
-      const result = this.parseConflictResolutionResponse(response.choices[0]?.message?.content || '')
+      const content = response.output_text || 
+                     this.extractContentFromResponse(response.output) || 
+                     ''
+      const result = this.parseConflictResolutionResponse(content)
       
       // If resolution is strongly recommended, move conflict to resolved
       if (result.evaluationResult.toLowerCase().includes('recommend') && 
@@ -446,14 +433,16 @@ export class AICollaborationFacilitator {
     `
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai.responses.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: analysisPrompt }],
+        input: analysisPrompt,
         temperature: 0.3,
-        max_tokens: 2000
+        max_output_tokens: 2000
       })
 
-      return this.parseNextStepsResponse(response.choices[0]?.message?.content || '')
+      return this.parseNextStepsResponse(response.output_text || 
+                                        this.extractContentFromResponse(response.output) || 
+                                        '')
     } catch (error) {
       console.error('Next steps analysis failed:', error)
       return {
@@ -472,51 +461,44 @@ export class AICollaborationFacilitator {
   // Enhanced helper methods
   private async selectOptimalAIPersona(goal: string, creator: Participant): Promise<AIPersona> {
     const personaPrompt = `
-    Determine the optimal AI persona for this collaboration with enhanced analysis:
+    Select optimal AI persona for workflow collaboration:
     
-    Goal: "${goal}"
+    Project Goal: ${goal}
+    Project Creator: ${creator.name}
+    Creator Role: ${creator.role}
+    Creator Expertise: ${creator.expertiseAreas.join(', ')}
+    Creator Communication Style: ${creator.preferredCommunicationStyle}
     
-    Creator Profile:
-    - Name: ${creator.name}
-    - Role: ${creator.role}
-    - Expertise Areas: ${creator.expertiseAreas.join(', ')}
-    - Communication Style: ${creator.preferredCommunicationStyle}
+    Available personas:
+    1. Facilitator - Guides discussions, manages conflicts, ensures participation
+    2. Expert - Provides technical insights, validates solutions, suggests improvements
+    3. Coordinator - Organizes tasks, tracks progress, manages timelines
+    4. Innovator - Suggests creative solutions, challenges assumptions, explores alternatives
     
-    Goal Analysis:
-    - Complexity Level: ${this.assessGoalComplexity(goal)}
-    - Domain Focus: ${this.extractDomainFocus(goal)}
-    - Collaboration Needs: ${this.assessCollaborationNeeds(goal)}
+    Personality traits:
+    - Analytical: Data-driven, systematic, thorough
+    - Creative: Imaginative, flexible, open to new ideas
+    - Practical: Results-focused, efficient, straightforward
+    - Supportive: Encouraging, patient, collaborative
     
-    Choose the optimal AI persona configuration considering:
+    Choose the best role and personality combination for this context.
+    Consider the creator's style and project needs.
     
-    AI Role Options:
-    - Facilitator: Guides discussions, manages conflicts, ensures participation
-    - Expert: Provides technical knowledge, best practices, solution guidance  
-    - Teacher: Explains concepts, helps learning, builds capabilities
-    - Optimizer: Focuses on efficiency, performance, process improvement
-    
-    Personality Options:
-    - Encouraging: Positive, supportive, builds confidence
-    - Analytical: Data-driven, systematic, detail-oriented
-    - Creative: Innovative, brainstorming, outside-the-box thinking
-    - Practical: Results-focused, pragmatic, implementation-oriented
-    
-    Provide detailed reasoning for your choice including:
-    1. Why this role/personality combination best serves the goal
-    2. How it complements the creator's style and expertise
-    3. What specific value it will bring to the collaboration
-    4. How it should adapt as the team grows
+    Respond with: role|personality (e.g., "facilitator|supportive")
     `
 
     try {
-      const response = await this.openai.chat.completions.create({
+      const response = await this.openai.responses.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: personaPrompt }],
+        input: personaPrompt,
         temperature: 0.3,
-        max_tokens: 500
+        max_output_tokens: 500
       })
 
-      return this.parsePersonaResponse(response.choices[0]?.message?.content || '')
+      const content = response.output_text || 
+                     this.extractContentFromResponse(response.output) || 
+                     ''
+      return this.parsePersonaResponse(content)
     } catch {
       // Intelligent fallback based on creator profile
       const role = creator.expertiseAreas.some(area => 
@@ -1177,5 +1159,18 @@ What would you like to focus on first?`
 
   private generateEntryId(): string {
     return `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+
+  // Helper method to extract content from response output array
+  private extractContentFromResponse(output: any[]): string {
+    if (!output || output.length === 0) return ''
+    
+    const messageOutput = output.find((item: any) => item.type === 'message')
+    if (messageOutput && messageOutput.content && messageOutput.content.length > 0) {
+      const textContent = messageOutput.content.find((c: any) => c.type === 'output_text')
+      return textContent?.text || ''
+    }
+    
+    return ''
   }
 }

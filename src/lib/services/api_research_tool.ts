@@ -166,12 +166,13 @@ export class AIAPIResearcher {
     }
   }
 
-  private extractContentFromResponse(output: unknown[]): string {
+  private extractContentFromResponse(output: any[]): string {
     if (!output || output.length === 0) return ''
     
-    const firstOutput = output[0] as { content?: Array<{ text?: string }> }
-    if (firstOutput.content && firstOutput.content.length > 0) {
-      return firstOutput.content[0].text || ''
+    const messageOutput = output.find((item: any) => item.type === 'message')
+    if (messageOutput && messageOutput.content && messageOutput.content.length > 0) {
+      const textContent = messageOutput.content.find((c: any) => c.type === 'output_text')
+      return textContent?.text || ''
     }
     
     return ''
@@ -245,7 +246,7 @@ export class AIAPIResearcher {
     - SDK availability
     - Community support
     
-    Respond with JSON in this format:
+    Please respond with a JSON object in this format:
     {
       "reliability": 85,
       "complexity": 30,
@@ -263,7 +264,12 @@ export class AIAPIResearcher {
         model: "gpt-4o",
         input: analysisPrompt,
         temperature: 0.2,
-        max_output_tokens: 1000
+        max_output_tokens: 1000,
+        text: {
+          format: {
+            type: "json_object"
+          }
+        }
       })
 
       const content = response.output_text || 

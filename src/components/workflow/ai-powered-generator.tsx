@@ -82,50 +82,26 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
   const startGeneration = async () => {
     setIsGenerating(true)
     setProgress(0)
+    setCurrentPhase('discovery')
 
     try {
-      // Phase 1: Discovery & Planning
-      setCurrentPhase('discovery')
-      setCurrentStep('Analyzing your requirements with AI...')
+      // Use the new fast generation method
+      setCurrentStep('AI is analyzing your requirements...')
       setProgress(20)
-
-      const discoveryResult = await FlowCraftAI.discoverAndPlan(prompt)
-      setDiscovery(discoveryResult)
-      setProgress(40)
-
-      // Phase 2: Service Research (if needed)
-      if (discoveryResult.unknownServices.length > 0) {
-        setCurrentPhase('research')
-        setCurrentStep(`Researching ${discoveryResult.unknownServices.length} unknown services...`)
-        setProgress(50)
-
-        const researchResults = await FlowCraftAI.researchUnknownServices(discoveryResult.unknownServices)
-        setResearch(researchResults)
-        setProgress(60)
-
-        // Phase 3: Integration Generation
-        setCurrentPhase('integration')
-        setCurrentStep('Generating custom integration code...')
-        setProgress(70)
-
-        const generatedIntegrations = await FlowCraftAI.generateIntegrations(researchResults)
-        setIntegrations(generatedIntegrations)
-        setProgress(80)
-      } else {
-        setProgress(70)
-      }
-
-      // Phase 4: Complete System Generation
+      
       setCurrentPhase('generation')
       setCurrentStep('Building your complete workflow system...')
-      setProgress(90)
+      setProgress(50)
 
-      const workflowProject = await FlowCraftAI.generateWorkflowProject(
-        discoveryResult,
-        integrations,
-        prompt
+      const { workflow, project } = await FlowCraftAI.generateWorkflowFast(
+        prompt, 
+        (update) => {
+          setCurrentStep(update.message)
+          setProgress(update.progress)
+        }
       )
-      setProject(workflowProject)
+      
+      setProject(project)
       setProgress(100)
 
       // Phase 5: Complete
@@ -133,7 +109,7 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
       setCurrentStep('System generation complete!')
       
       setTimeout(() => {
-        onComplete(workflowProject)
+        onComplete(project)
       }, 1500)
 
     } catch (error) {

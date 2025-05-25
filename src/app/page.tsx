@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { PromptInput } from '@/components/workflow/prompt-input'
 import { LovableLayout } from '@/components/layout/lovable-layout'
-import { AIService, ProgressUpdate } from '@/lib/ai-service'
+import { FlowCraftAI, ProgressUpdate } from '@/lib/ai-service'
 import { WorkflowExecutor } from '@/lib/workflow-executor'
 import { Workflow, WorkflowProject } from '@/types/workflow'
 import { Sparkles } from 'lucide-react'
+
 
 type AppState = 'input' | 'workflow'
 
@@ -20,58 +21,47 @@ export default function Home() {
   const [isWorkflowLoading, setIsWorkflowLoading] = useState(false)
   const [sessionId] = useState(() => `session_${Date.now()}`)
   const [progressUpdate, setProgressUpdate] = useState<ProgressUpdate | null>(null)
+  const [apiTestResult, setApiTestResult] = useState<string | null>(null)
+
+  // Test the Responses API
+  const handleTestAPI = async () => {
+    setApiTestResult('Testing...')
+    try {
+      const result = await FlowCraftAI.testResponsesAPI()
+      setApiTestResult(result.success ? `✅ ${result.message}` : `❌ ${result.message}`)
+    } catch (error) {
+      setApiTestResult(`❌ Test failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
+  }
 
   const handlePromptSubmit = async (prompt: string) => {
     setCurrentPrompt(prompt)
     setIsGenerating(true)
     setIsWorkflowLoading(true)
-    setState('workflow') // Go to Lovable-style layout immediately
+    setState('workflow')
     
     try {
-      // Get Lovable-style enthusiastic response + start generation immediately
-      const { enthusiasticResponse, generationPromise } = await AIService.generateLovableStyleResponse(
-        prompt,
-        handleProgressUpdate // Pass progress callback for streaming updates
-      )
+      // Get immediate enthusiastic response
+      const enthusiasticResponse = FlowCraftAI.generateLovableResponse(prompt)
       
-      // Show the enthusiastic response immediately (like Lovable)
       setChatHistory([
         { role: 'user', content: prompt },
         { role: 'assistant', content: enthusiasticResponse }
       ])
 
-      // Wait for the actual generation to complete
-      const { workflow: generatedWorkflow, project: generatedProject } = await generationPromise
+      // Use the fast generation method
+      const { workflow: generatedWorkflow, project: generatedProject } = 
+        await FlowCraftAI.generateWorkflowFast(prompt, handleProgressUpdate)
       
-      // Create session for collaboration
-      AIService.createSession(sessionId, prompt, generatedWorkflow, generatedProject)
-      
-      // Update state with generated results
       setWorkflow(generatedWorkflow)
       setProject(generatedProject)
       setIsWorkflowLoading(false)
       
-      // Show completion message (like Lovable)
-      setChatHistory(prev => [...prev, { 
-        role: 'assistant', 
-        content: `✨ Your workflow automation is ready!\n\nI've created ${generatedWorkflow.nodes.length} connected steps with ${generatedProject.integrations.length} custom integrations. The workflow includes a complete backend engine, monitoring system, and is ready for testing!\n\nYou can now execute this workflow directly or ask me to modify anything.` 
-      }])
-      
-      // Add "What's next" as a chat message
-      setTimeout(() => {
-        setChatHistory(prev => [...prev, { 
-          role: 'assistant', 
-          content: `**What's next?**\n\n• **Test & Execute:** Run your workflow to validate the automation\n• **Add Integrations:** Connect real APIs and services\n• **Deploy:** Push to production environment\n\nUse the buttons below or ask me to make any changes!` 
-        }])
-      }, 1000)
-      
     } catch (error) {
       console.error('Generation failed:', error)
+      const errorMessage = 'I had trouble generating your workflow. Let me try a different approach.'
+      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMessage }])
       setIsWorkflowLoading(false)
-      setChatHistory(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Oops! Something went wrong while building your workflow. Let me try a different approach...' 
-      }])
     } finally {
       setIsGenerating(false)
     }
@@ -87,11 +77,11 @@ export default function Home() {
     setChatHistory(prev => [...prev, newUserMessage])
     
     // Update session history
-    AIService.updateSessionHistory(sessionId, 'user', message)
+    FlowCraftAI.updateSessionHistory(sessionId, 'user', message)
     
     try {
       // Use enhanced collaborative workflow modification
-      const modifiedWorkflow = await AIService.modifyWorkflow(workflow, message, sessionId)
+      const modifiedWorkflow = await FlowCraftAI.modifyWorkflow(workflow, message, sessionId)
       
       // Update workflow state
       setWorkflow(modifiedWorkflow)
@@ -103,13 +93,13 @@ export default function Home() {
       setChatHistory(prev => [...prev, newAiMessage])
       
       // Update session history
-      AIService.updateSessionHistory(sessionId, 'assistant', aiResponse)
+      FlowCraftAI.updateSessionHistory(sessionId, 'assistant', aiResponse)
       
     } catch (error) {
       console.error('Failed to modify workflow:', error)
       const errorMessage = 'I had trouble understanding that modification. Could you please rephrase your request?'
       setChatHistory(prev => [...prev, { role: 'assistant', content: errorMessage }])
-      AIService.updateSessionHistory(sessionId, 'assistant', errorMessage)
+      FlowCraftAI.updateSessionHistory(sessionId, 'assistant', errorMessage)
     } finally {
       setIsGenerating(false)
     }
@@ -219,6 +209,20 @@ export default function Home() {
                 buttonIcon={<Sparkles className="w-4 h-4" />}
                 disabled={isGenerating}
               />
+              
+              {/* API Test Section */}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={handleTestAPI}
+                  className="px-4 py-2 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  disabled={apiTestResult === 'Testing...'}
+                >
+                  Test Responses API
+                </button>
+                {apiTestResult && (
+                  <p className="mt-2 text-sm text-gray-600">{apiTestResult}</p>
+                )}
+              </div>
             </div>
 
             {/* Feature Preview */}

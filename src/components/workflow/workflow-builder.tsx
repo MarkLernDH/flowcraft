@@ -26,26 +26,19 @@ import {
   getConditionalLayout
 } from '@/lib/layout'
 
-// Import Zapier-style components instead of the old ones
 import { 
-  ZapierStyleTriggerNode as TriggerNode,
-  ZapierStyleActionNode as ActionNode, 
-  ZapierStyleConditionNode as ConditionNode,
-  ZapierStyleTransformNode as TransformNode
+  EnhancedTriggerNode as TriggerNode,
+  EnhancedActionNode as ActionNode,
+  enhancedNodeTypes
 } from './nodes/zapier-style-nodes'
 
+const nodeTypes = enhancedNodeTypes // Use enhanced versions
+
+// Props interface for WorkflowBuilder component
 interface WorkflowBuilderProps {
   workflow: Workflow
   onSave: (workflow: Workflow) => void
   className?: string
-}
-
-const nodeTypes = {
-  trigger: TriggerNode,
-  action: ActionNode,
-  condition: ConditionNode,
-  transform: TransformNode,
-  loop: ActionNode,
 }
 
 // Enhanced layout hook with multiple layout options
@@ -127,15 +120,37 @@ function WorkflowBuilderInner({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialLayout.edges)
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [layoutType, setLayoutType] = useState<'horizontal' | 'vertical' | 'auto'>('vertical') // Changed default
+  const [isInitialized, setIsInitialized] = useState(false)
   
   const { onLayout, resetLayout } = useLayoutedElements()
+  const { fitView } = useReactFlow()
 
   // Re-layout when workflow changes - default to vertical
   useEffect(() => {
     const newLayout = getLayoutedElementsVertical(workflow.nodes, workflow.edges)
     setNodes(newLayout.nodes)
     setEdges(newLayout.edges)
+    setIsInitialized(false) // Reset initialization flag
   }, [workflow.id, workflow.nodes, workflow.edges, setNodes, setEdges])
+
+  // Properly center the view after nodes are loaded
+  useEffect(() => {
+    if (nodes.length > 0 && !isInitialized) {
+      // Use a longer delay to ensure nodes are fully rendered
+      const timer = setTimeout(() => {
+        fitView({ 
+          padding: 0.1, // Reduced padding for better centering
+          maxZoom: 1.0, 
+          minZoom: 0.3,
+          duration: 500,
+          includeHiddenNodes: false
+        })
+        setIsInitialized(true)
+      }, 300) // Increased delay to ensure proper rendering
+
+      return () => clearTimeout(timer)
+    }
+  }, [nodes, fitView, isInitialized])
 
   const onConnect = useCallback(
     (params: Connection) => {
@@ -240,13 +255,26 @@ function WorkflowBuilderInner({
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
-        fitView
         className="bg-gray-50"
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-        minZoom={0.3}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
+        minZoom={0.2}
         maxZoom={2}
         snapToGrid
         snapGrid={[20, 20]}
+        proOptions={{ hideAttribution: true }}
+        onInit={() => {
+          // Ensure proper initialization when ReactFlow is ready
+          if (nodes.length > 0) {
+            setTimeout(() => {
+              fitView({ 
+                padding: 0.1,
+                maxZoom: 1.0,
+                minZoom: 0.3,
+                duration: 300
+              })
+            }, 100)
+          }
+        }}
       >
         <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
         <Controls />
