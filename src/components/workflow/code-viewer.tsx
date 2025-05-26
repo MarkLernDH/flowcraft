@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { 
   File, 
   Folder, 
@@ -16,6 +15,14 @@ import {
 } from 'lucide-react'
 import { WorkflowProject } from '@/types/workflow'
 
+interface FileTreeItem {
+  name: string
+  type: 'file' | 'folder'
+  icon?: React.ComponentType<{ className?: string }>
+  content?: string
+  children?: FileTreeItem[]
+}
+
 interface CodeViewerProps {
   project: WorkflowProject
 }
@@ -24,7 +31,7 @@ export function CodeViewer({ project }: CodeViewerProps) {
   const [activeFile, setActiveFile] = useState('workflow-engine.ts')
   const [expandedFolders, setExpandedFolders] = useState(new Set(['src', 'integrations']))
 
-  const fileTree = [
+  const fileTree: FileTreeItem[] = [
     {
       name: 'src',
       type: 'folder',
@@ -55,13 +62,13 @@ export function CodeViewer({ project }: CodeViewerProps) {
       children: project.integrations.length > 0 
         ? project.integrations.map(integration => ({
             name: `${integration.serviceName.toLowerCase()}.ts`,
-            type: 'file',
+            type: 'file' as const,
             icon: Database,
             content: integration.code || generateFallbackIntegrationCode(integration.serviceName)
           }))
         : [{
             name: 'example-integration.ts',
-            type: 'file',
+            type: 'file' as const,
             icon: Database,
             content: generateExampleIntegrationCode()
           }]
@@ -90,7 +97,7 @@ export function CodeViewer({ project }: CodeViewerProps) {
     setExpandedFolders(newExpanded)
   }
 
-  const renderFileTree = (items: any[], depth = 0) => {
+  const renderFileTree = (items: FileTreeItem[], depth = 0) => {
     return items.map((item, index) => (
       <div key={index}>
         {item.type === 'folder' ? (
@@ -112,7 +119,7 @@ export function CodeViewer({ project }: CodeViewerProps) {
               )}
               <span className="text-sm">{item.name}</span>
             </button>
-            {expandedFolders.has(item.name) && (
+            {expandedFolders.has(item.name) && item.children && (
               <div>
                 {renderFileTree(item.children, depth + 1)}
               </div>
@@ -128,7 +135,7 @@ export function CodeViewer({ project }: CodeViewerProps) {
             }`}
             style={{ paddingLeft: `${depth * 16 + 24}px` }}
           >
-            <item.icon className="w-4 h-4" />
+            {item.icon && <item.icon className="w-4 h-4" />}
             {item.name}
           </button>
         )}
@@ -137,7 +144,7 @@ export function CodeViewer({ project }: CodeViewerProps) {
   }
 
   const getFileContent = (fileName: string) => {
-    const findFile = (items: any[]): any => {
+    const findFile = (items: FileTreeItem[]): FileTreeItem | null => {
       for (const item of items) {
         if (item.type === 'file' && item.name === fileName) {
           return item

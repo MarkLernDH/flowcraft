@@ -16,8 +16,8 @@ export interface ExecutionStepResult {
   startTime: Date
   endTime: Date
   duration: number
-  input?: any
-  output?: any
+  input?: unknown
+  output?: unknown
   error?: string
 }
 
@@ -121,7 +121,7 @@ export class WorkflowExecutor {
     console.log(`🔄 Executing node: ${node.data.label} (${node.type})`)
     
     try {
-      let output: any
+      let output: unknown
       
       switch (node.type) {
         case 'trigger':
@@ -157,14 +157,14 @@ export class WorkflowExecutor {
         output
       }
     } catch (error) {
-      const stepEndTime = new Date()
-      const duration = stepEndTime.getTime() - stepStartTime.getTime()
+      // const stepEndTime = new Date()
+      // const duration = stepEndTime.getTime() - stepStartTime.getTime()
       
       throw error // Re-throw to be handled by caller
     }
   }
 
-  private static async executeTrigger(node: WorkflowNode, project?: WorkflowProject): Promise<any> {
+  private static async executeTrigger(node: WorkflowNode, _project?: WorkflowProject): Promise<unknown> {
     // Simulate trigger execution
     await new Promise(resolve => setTimeout(resolve, 1000))
     
@@ -185,7 +185,7 @@ export class WorkflowExecutor {
     node: WorkflowNode, 
     previousResults: ExecutionStepResult[],
     project?: WorkflowProject
-  ): Promise<any> {
+  ): Promise<unknown> {
     // Get input from previous steps
     const input = this.getNodeInput(node, previousResults)
     
@@ -237,8 +237,8 @@ export class WorkflowExecutor {
   private static async executeCondition(
     node: WorkflowNode, 
     previousResults: ExecutionStepResult[],
-    project?: WorkflowProject
-  ): Promise<any> {
+    _project?: WorkflowProject
+  ): Promise<unknown> {
     const input = this.getNodeInput(node, previousResults)
     
     // Simulate condition evaluation
@@ -264,8 +264,8 @@ export class WorkflowExecutor {
   private static async executeTransform(
     node: WorkflowNode, 
     previousResults: ExecutionStepResult[],
-    project?: WorkflowProject
-  ): Promise<any> {
+    _project?: WorkflowProject
+  ): Promise<unknown> {
     const input = this.getNodeInput(node, previousResults)
     
     // Simulate data transformation
@@ -282,7 +282,7 @@ export class WorkflowExecutor {
       output: {
         originalData: input,
         transformedData: {
-          ...input,
+          ...(typeof input === 'object' && input !== null ? input as Record<string, unknown> : {}),
           processed: true,
           transformedAt: new Date().toISOString(),
           transformationType: transformType
@@ -293,9 +293,9 @@ export class WorkflowExecutor {
 
   private static async executeLoop(
     node: WorkflowNode, 
-    previousResults: ExecutionStepResult[],
-    project?: WorkflowProject
-  ): Promise<any> {
+    _previousResults: ExecutionStepResult[],
+    _project?: WorkflowProject
+  ): Promise<unknown> {
     // Simulate loop execution
     await new Promise(resolve => setTimeout(resolve, 2000))
     
@@ -317,9 +317,9 @@ export class WorkflowExecutor {
 
   private static async executeGenericStep(
     node: WorkflowNode, 
-    previousResults: ExecutionStepResult[],
-    project?: WorkflowProject
-  ): Promise<any> {
+    _previousResults: ExecutionStepResult[],
+    _project?: WorkflowProject
+  ): Promise<unknown> {
     // Generic step execution
     await new Promise(resolve => setTimeout(resolve, 1000))
     
@@ -333,7 +333,7 @@ export class WorkflowExecutor {
     }
   }
 
-  private static getNodeInput(node: WorkflowNode, previousResults: ExecutionStepResult[]): any {
+  private static getNodeInput(node: WorkflowNode, previousResults: ExecutionStepResult[]): unknown {
     // Get output from the most recent successful step as input
     const lastSuccessfulResult = previousResults
       .filter(result => result.status === 'completed')
@@ -350,7 +350,7 @@ export class WorkflowExecutor {
    * Get execution summary for display
    */
   static getExecutionSummary(result: WorkflowExecutionResult): string {
-    const { success, results, errors, totalDuration } = result
+    const { success, results, totalDuration } = result
     const completedSteps = results.filter(r => r.status === 'completed').length
     const failedSteps = results.filter(r => r.status === 'failed').length
     

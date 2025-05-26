@@ -89,6 +89,17 @@
   @apply border border-border rounded-lg shadow-lg;
 }
 
+/* Fix ReactFlow container height issues */
+.react-flow {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.react-flow__renderer {
+  height: 100% !important;
+  width: 100% !important;
+}
+
 /* Custom animations */
 @keyframes pulse-glow {
   0%, 100% { 

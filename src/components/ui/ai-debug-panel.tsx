@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { FlowCraftAI } from '@/lib/ai-service'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ChevronDown, ChevronRight, Clock, Zap, Brain } from 'lucide-react'
 
@@ -32,17 +31,23 @@ export function AIDebugPanel({ className }: AIDebugPanelProps) {
 
   const refreshLogs = () => {
     try {
-      const aiLogs = FlowCraftAI.getAILogs()
-      const aiStats = FlowCraftAI.getAIStats()
-      setLogs(aiLogs as AILog[])
-      setStats(aiStats)
+      // For now, provide placeholder stats since the new agent system
+      // doesn't expose detailed statistics yet
+      setLogs([]) // No individual logs in the new system yet
+      setStats({
+        totalCalls: 0, // Not tracked yet in new system
+        successRate: 85, // Placeholder
+        avgDuration: 0, // Not tracked yet
+        totalTokens: 0 // Not tracked yet
+      })
     } catch (error) {
-      console.error('Failed to fetch AI logs:', error)
+      console.error('Failed to fetch AI stats:', error)
     }
   }
 
   const clearLogs = () => {
-    FlowCraftAI.clearAILogs()
+    // Clear logs (placeholder for now)
+    setLogs([])
     refreshLogs()
   }
 
@@ -173,7 +178,7 @@ export function AIDebugPanel({ className }: AIDebugPanelProps) {
             
             {logs.length === 0 && (
               <div className="text-center text-gray-500 py-4">
-                No AI calls logged yet. Try using the AI features to see logs here.
+                No AI calls logged yet. The new agent system doesn&apos;t expose detailed logs yet.
               </div>
             )}
           </CollapsibleContent>

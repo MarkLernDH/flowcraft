@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowCraft GPT-4o Logging Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .log-entry {
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .log-entry.success {
+            border-left-color: #28a745;
+        }
+        .log-entry.error {
+            border-left-color: #dc3545;
+        }
+        .log-entry.warning {
+            border-left-color: #ffc107;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            font-family: monospace;
+        }
+        .details {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+            background: #e9ecef;
+            padding: 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        #logs {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 FlowCraft GPT-4o Integration Test</h1>
+        <p>This test demonstrates the enhanced logging functionality with GPT-4o integration.</p>
+        
+        <div>
+            <button onclick="testWorkflowGeneration()">Test Workflow Generation</button>
+            <button onclick="clearLogs()">Clear Logs</button>
+        </div>
+        
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        const logsContainer = document.getElementById('logs');
+        
+        function addLog(level, message, details = null) {
+            const timestamp = new Date().toISOString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${level}`;
+            
+            let detailsHtml = '';
+            if (details) {
+                detailsHtml = `<div class="details">${JSON.stringify(details, null, 2)}</div>`;
+            }
+            
+            logEntry.innerHTML = `
+                <div><strong>${message}</strong></div>
+                <div class="timestamp">${timestamp}</div>
+                ${detailsHtml}
+            `;
+            
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+        }
+        
+        function clearLogs() {
+            logsContainer.innerHTML = '';
+        }
+        
+        async function testWorkflowGeneration() {
+            addLog('info', 'Starting workflow generation test', { 
+                model: 'gpt-4o',
+                test_prompt: 'Create a customer support ticket workflow'
+            });
+            
+            try {
+                addLog('info', '🤖 GPT-4o analyzing your requirements...', {
+                    phase: 'analyzing',
+                    progress: 10,
+                    model: 'gpt-4o',
+                    prompt_length: 42,
+                    estimated_time: '10 seconds'
+                });
+                
+                // Simulate API call
+                const response = await fetch('/api/workflow/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        prompt: 'Create a customer support ticket workflow' 
+                    }),
+                });
+                
+                addLog('info', '🔧 Extracting workflow structure from AI response...', {
+                    phase: 'analyzing',
+                    progress: 35,
+                    ai_response_length: 'success',
+                    workflow_name: 'Customer Support Ticket Workflow',
+                    trigger_type: 'email'
+                });
+                
+                const data = await response.json();
+                
+                addLog('success', 'Received response from API', {
+                    success: data.success,
+                    workflow_nodes: data.workflow?.nodes?.length || 0,
+                    project_components: data.project?.components?.length || 0,
+                    has_instant_preview: !!data.instant_preview
+                });
+                
+                addLog('info', '🏗️ Building workflow nodes and connections...', {
+                    phase: 'generating',
+                    progress: 60,
+                    nodes_created: data.workflow?.nodes?.length || 0,
+                    edges_created: data.workflow?.edges?.length || 0,
+                    workflow_id: data.workflow?.id
+                });
+                
+                addLog('info', '📦 Creating project structure and components...', {
+                    phase: 'generating',
+                    progress: 85,
+                    project_id: data.project?.id,
+                    components_generated: data.project?.components?.length || 0,
+                    files_generated: data.project?.generatedFiles?.length || 0
+                });
+                
+                addLog('success', '🎉 AI-powered workflow ready with GPT-4o intelligence!', {
+                    phase: 'complete',
+                    progress: 100,
+                    total_nodes: data.workflow?.nodes?.length || 0,
+                    total_edges: data.workflow?.edges?.length || 0,
+                    ai_model: 'gpt-4o',
+                    generation_time: 'completed'
+                });
+                
+                addLog('success', 'Workflow generation completed successfully', {
+                    workflow_name: data.workflow?.name,
+                    complexity: data.insights?.complexity_analysis,
+                    ai_model: 'gpt-4o'
+                });
+                
+            } catch (error) {
+                addLog('error', 'Workflow generation failed', {
+                    error: error.message,
+                    stack: error.stack
+                });
+            }
+        }
+        
+        // Add initial log
+        addLog('info', 'FlowCraft GPT-4o logging system initialized', {
+            timestamp: new Date().toISOString(),
+            browser: navigator.userAgent,
+            features: ['GPT-4o Integration', 'Detailed Logging', 'Real-time Progress']
+        });
+    </script>
+</body>
+</html> 

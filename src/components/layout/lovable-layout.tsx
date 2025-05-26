@@ -23,10 +23,18 @@ import { WorkflowLoading } from '@/components/workflow/workflow-loading'
 import { CodeViewer } from '@/components/workflow/code-viewer'
 import { PromptInput } from '@/components/workflow/prompt-input'
 import { AIDebugPanel } from '@/components/ui/ai-debug-panel'
+import { DetailedLogsPanel } from '@/components/ui/detailed-logs-panel'
 import { Workflow, WorkflowProject } from '@/types/workflow'
 import { EnhancedChat } from '@/components/workflow/enhanced-chat'
 
 import { cn } from '@/lib/utils'
+
+interface LogEntry {
+  timestamp: string
+  level: 'info' | 'success' | 'warning' | 'error'
+  message: string
+  details?: Record<string, unknown>
+}
 
 interface LovableLayoutProps {
   workflow: Workflow | null
@@ -39,6 +47,9 @@ interface LovableLayoutProps {
   onExecuteWorkflow: () => void
   onStartOver: () => void
   onWorkflowSave: (workflow: Workflow) => void
+  detailedLogs?: LogEntry[]
+  showDetailedLogs?: boolean
+  onToggleDetailedLogs?: () => void
 }
 
 interface ChatContentPart {
@@ -133,10 +144,14 @@ export function LovableLayout({
   onChatMessage,
   onExecuteWorkflow, 
   onStartOver,
-  onWorkflowSave
+  onWorkflowSave,
+  detailedLogs = [],
+  showDetailedLogs = false,
+  onToggleDetailedLogs
 }: LovableLayoutProps) {
   const [codeViewerOpen, setCodeViewerOpen] = useState(false)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
+  const [logsPanelOpen, setLogsPanelOpen] = useState(false)
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
@@ -339,8 +354,57 @@ export function LovableLayout({
           </AnimatePresence>
         </div>
 
-        {/* AI Debug Panel - Development Only */}
-        <div className="absolute bottom-4 right-4">
+        {/* Debug Panels - Development Only */}
+        <div className="absolute bottom-4 right-4 flex flex-col gap-2">
+          {/* Detailed Logs Panel */}
+          <AnimatePresence>
+            {logsPanelOpen ? (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ duration: 0.2 }}
+                className="relative w-96"
+              >
+                <DetailedLogsPanel 
+                  logs={detailedLogs} 
+                  className="bg-white/95 backdrop-blur shadow-lg border border-gray-200" 
+                />
+                <Button
+                  onClick={() => setLogsPanelOpen(false)}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 p-1 h-auto"
+                >
+                  ✕
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Button
+                  onClick={() => setLogsPanelOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-white/90 backdrop-blur shadow-lg border border-gray-200 hover:bg-white/95 text-gray-600 hover:text-gray-900"
+                  title="Detailed Process Logs"
+                >
+                  📋 Logs {detailedLogs.length > 0 && (
+                    <span className="ml-1 bg-blue-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                      {detailedLogs.length}
+                    </span>
+                  )}
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* AI Debug Panel */}
           <AnimatePresence>
             {debugPanelOpen ? (
               <motion.div 

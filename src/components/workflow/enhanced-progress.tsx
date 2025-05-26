@@ -22,6 +22,14 @@ interface ProgressStep {
   estimatedTime: string
 }
 
+interface PreviewData {
+  type: 'trigger' | 'action'
+  data: {
+    service: string
+    operation: string
+  }
+}
+
 interface EnhancedProgressProps {
   prompt: string
   onComplete?: () => void
@@ -32,7 +40,7 @@ export function EnhancedProgress({ prompt, onComplete, isGenerating }: EnhancedP
   const [currentStep, setCurrentStep] = useState(0)
   const [steps, setSteps] = useState<ProgressStep[]>([])
   const [progress, setProgress] = useState(0)
-  const [previewData, setPreviewData] = useState<any>(null)
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null)
 
   // Initialize steps based on prompt analysis
   useEffect(() => {

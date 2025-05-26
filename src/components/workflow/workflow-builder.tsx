@@ -27,8 +27,6 @@ import {
 } from '@/lib/layout'
 
 import { 
-  EnhancedTriggerNode as TriggerNode,
-  EnhancedActionNode as ActionNode,
   enhancedNodeTypes
 } from './nodes/zapier-style-nodes'
 
@@ -92,12 +90,12 @@ const useLayoutedElements = () => {
     // Fit view after layout with a small delay to ensure nodes are rendered
     setTimeout(() => {
       fitView({ 
-        padding: 0.2, 
-        maxZoom: 1.0, 
-        minZoom: 0.3,
-        duration: 800 
+        padding: 0.3, 
+        maxZoom: 0.8, 
+        minZoom: 0.2,
+        duration: 600 
       })
-    }, 100)
+    }, 300)
   }, [getNodes, setNodes, getEdges, setEdges, fitView])
 
   const resetLayout = useCallback(() => {
@@ -139,14 +137,14 @@ function WorkflowBuilderInner({
       // Use a longer delay to ensure nodes are fully rendered
       const timer = setTimeout(() => {
         fitView({ 
-          padding: 0.1, // Reduced padding for better centering
-          maxZoom: 1.0, 
-          minZoom: 0.3,
+          padding: 0.2, // Increased padding to prevent edge cutoff
+          maxZoom: 0.8, // Reduced max zoom to ensure full view
+          minZoom: 0.2,
           duration: 500,
           includeHiddenNodes: false
         })
         setIsInitialized(true)
-      }, 300) // Increased delay to ensure proper rendering
+      }, 500) // Increased delay to ensure proper rendering
 
       return () => clearTimeout(timer)
     }
@@ -244,7 +242,7 @@ function WorkflowBuilderInner({
   }, [setNodes, setEdges])
 
   return (
-    <div className={cn("w-full h-full bg-gray-50", className)}>
+    <div className={cn("w-full h-full bg-gray-50 overflow-hidden", className)}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -256,9 +254,9 @@ function WorkflowBuilderInner({
         nodeTypes={nodeTypes}
         connectionMode={ConnectionMode.Loose}
         className="bg-gray-50"
-        defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
-        minZoom={0.2}
-        maxZoom={2}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.6 }}
+        minZoom={0.1}
+        maxZoom={1.5}
         snapToGrid
         snapGrid={[20, 20]}
         proOptions={{ hideAttribution: true }}
@@ -267,12 +265,12 @@ function WorkflowBuilderInner({
           if (nodes.length > 0) {
             setTimeout(() => {
               fitView({ 
-                padding: 0.1,
-                maxZoom: 1.0,
-                minZoom: 0.3,
+                padding: 0.3,
+                maxZoom: 0.8,
+                minZoom: 0.2,
                 duration: 300
               })
-            }, 100)
+            }, 200)
           }
         }}
       >

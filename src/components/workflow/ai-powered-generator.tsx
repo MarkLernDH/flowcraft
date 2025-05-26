@@ -11,19 +11,15 @@ import {
   AlertCircle, 
   Clock,
   Sparkles,
-  Cog,
-  Database,
-  Globe
+  Cog
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
-import { FlowCraftAI } from '@/lib/ai-service'
+
 import { 
   AIDiscoveryResult, 
-  ServiceResearch, 
-  GeneratedIntegration, 
   WorkflowProject 
 } from '@/types/workflow'
 import { config } from '@/lib/config'
@@ -39,9 +35,7 @@ type GenerationPhase = 'discovery' | 'research' | 'integration' | 'generation' |
 export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorProps) {
   const [currentPhase, setCurrentPhase] = useState<GenerationPhase>('discovery')
   const [progress, setProgress] = useState(0)
-  const [discovery, setDiscovery] = useState<AIDiscoveryResult | null>(null)
-  const [research, setResearch] = useState<ServiceResearch[]>([])
-  const [integrations, setIntegrations] = useState<GeneratedIntegration[]>([])
+  const [discovery] = useState<AIDiscoveryResult | null>(null)
   const [project, setProject] = useState<WorkflowProject | null>(null)
   const [currentStep, setCurrentStep] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
@@ -93,7 +87,11 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
       setCurrentStep('Building your complete workflow system...')
       setProgress(50)
 
-      const { workflow, project } = await FlowCraftAI.generateWorkflowFast(
+      // Use the new agent system
+      const { createAgent } = await import('@/lib/ai-agent')
+      const agent = createAgent()
+      
+      const result = await agent.generateWorkflowWithPlanner(
         prompt, 
         (update) => {
           setCurrentStep(update.message)
@@ -101,7 +99,15 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
         }
       )
       
-      setProject(project)
+      if (!result.success) {
+        throw new Error(result.error || 'Workflow generation failed')
+      }
+      
+      if (!result.result.project) {
+        throw new Error('No project generated')
+      }
+      
+      setProject(result.result.project)
       setProgress(100)
 
       // Phase 5: Complete
@@ -109,7 +115,7 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
       setCurrentStep('System generation complete!')
       
       setTimeout(() => {
-        onComplete(project)
+        onComplete(result.result.project!)
       }, 1500)
 
     } catch (error) {
@@ -261,68 +267,7 @@ export function AIPoweredGenerator({ prompt, onComplete, onError }: AIGeneratorP
                 </CardContent>
               </Card>
 
-              {/* Research Results */}
-              {research.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Search className="w-5 h-5" />
-                      Service Research
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid gap-4">
-                      {research.map((service, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Globe className="w-4 h-4" />
-                            <h4 className="font-medium">{service.serviceName}</h4>
-                            <Badge variant="secondary">{service.authentication}</Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 mb-2">{service.apiDocumentation}</p>
-                          <div className="text-xs text-gray-500">
-                            {service.endpoints.length} endpoints researched
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
-              {/* Integration Results */}
-              {integrations.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Code className="w-5 h-5" />
-                      Generated Integrations
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {integrations.map((integration, index) => (
-                        <div key={index} className="p-4 border rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Database className="w-4 h-4" />
-                            <h4 className="font-medium">{integration.className}</h4>
-                          </div>
-                          <div className="text-sm text-gray-600 mb-2">
-                            {integration.methods.length} methods generated
-                          </div>
-                          <div className="flex gap-2">
-                            {integration.dependencies.map((dep, depIndex) => (
-                              <Badge key={depIndex} variant="outline" className="text-xs">
-                                {dep}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Project Overview */}
               {project && (

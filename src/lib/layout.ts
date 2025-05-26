@@ -23,9 +23,9 @@ const LAYOUT_CONFIG = {
   vertical: {
     rankdir: 'TB', 
     nodesep: 60,  // Horizontal spacing between nodes in same rank  
-    ranksep: 200, // Vertical spacing between ranks (reduced from 300)
-    marginx: 100, // Increased margin for better centering
-    marginy: 100, // Increased margin for better centering
+    ranksep: 150, // Reduced vertical spacing between ranks
+    marginx: 50,  // Reduced margin to prevent excessive spacing
+    marginy: 50,  // Reduced margin to prevent excessive spacing
     edgesep: 20,  // Add edge separation
     align: 'UL'   // Align nodes to upper-left for consistent positioning
   }

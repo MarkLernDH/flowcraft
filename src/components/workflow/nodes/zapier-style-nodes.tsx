@@ -11,7 +11,6 @@ import {
   AlertCircle,
   Clock,
   Zap,
-  MoreHorizontal,
   ChevronDown,
   ExternalLink,
   MessageSquare
@@ -24,7 +23,7 @@ interface EnhancedNodeProps {
     description?: string
     service?: string
     operation?: string
-    config?: Record<string, any>
+    config?: Record<string, unknown>
     status?: 'configured' | 'needs_setup' | 'connected' | 'error'
     estimatedTime?: string
     lastRun?: Date
